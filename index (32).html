@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cofre de Arquivos</title>
+<style>
+:root{
+  --bg:#f4f6fa;--panel:#fff;--text:#1d2433;--muted:#6b7488;--line:#e3e7ef;
+  --brand:#2f6bff;--brand-d:#1f52d1;--danger:#e5484d;--ok:#18a058;
+  --shadow:0 4px 18px rgba(20,30,60,.08);--radius:12px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#10141c;--panel:#181e2a;--text:#e7ebf4;--muted:#8d97ad;--line:#273044;--shadow:0 4px 18px rgba(0,0,0,.4)}
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font:inherit;color:inherit}
+
+/* Sidebar */
+aside{width:240px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 14px;gap:6px;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;margin-bottom:12px;padding:0 6px}
+.logo span.ic{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;color:#fff;font-size:18px}
+.btn-primary{background:var(--brand);color:#fff;padding:11px 14px;border-radius:10px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px}
+.btn-primary:hover{background:var(--brand-d)}
+.cat{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;color:var(--muted);text-align:left;width:100%}
+.cat:hover{background:var(--bg)}
+.cat.active{background:rgba(47,107,255,.12);color:var(--brand);font-weight:600}
+.cat .n{margin-left:auto;font-size:12px;background:var(--bg);padding:2px 8px;border-radius:20px}
+.usage{margin-top:auto;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:12px;color:var(--muted)}
+.bar{height:6px;background:var(--bg);border-radius:6px;margin:8px 0;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--brand);width:0}
+
+/* Main */
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+header{display:flex;gap:10px;align-items:center;padding:14px 22px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.search{flex:1;min-width:160px;display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);padding:9px 12px;border-radius:10px}
+.search input{border:none;background:none;outline:none;width:100%}
+select,.icon-btn{background:var(--bg);border:1px solid var(--line);padding:9px 10px;border-radius:10px}
+.icon-btn:hover{border-color:var(--brand)}
+.icon-btn.on{background:rgba(47,107,255,.12);color:var(--brand);border-color:var(--brand)}
+.content{flex:1;overflow:auto;padding:22px;position:relative}
+.title-row{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.title-row h2{font-size:20px}
+.title-row small{color:var(--muted)}
+
+.selbar{display:none;align-items:center;gap:10px;background:var(--brand);color:#fff;padding:10px 14px;border-radius:10px;margin-bottom:14px}
+.selbar.show{display:flex}
+.selbar button{background:rgba(255,255,255,.18);padding:6px 12px;border-radius:8px}
+.selbar button:hover{background:rgba(255,255,255,.3)}
+.selbar .sp{flex:1}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;cursor:pointer;position:relative;transition:.15s;display:flex;flex-direction:column}
+.card:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+.card.sel{outline:2px solid var(--brand)}
+.thumb{height:120px;background:var(--bg);display:grid;place-items:center;font-size:44px;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.info{padding:10px 12px;min-width:0}
+.info .nm{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.info .mt{font-size:12px;color:var(--muted);margin-top:3px}
+.chk{position:absolute;top:8px;left:8px;width:20px;height:20px;accent-color:var(--brand);cursor:pointer;opacity:0;transition:.1s}
+.card:hover .chk,.chk:checked,.selmode .chk{opacity:1}
+.actions{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:.1s}
+.card:hover .actions{opacity:1}
+.actions button{background:var(--panel);border:1px solid var(--line);border-radius:8px;width:30px;height:30px;display:grid;place-items:center;font-size:14px}
+.actions button:hover{border-color:var(--brand)}
+.actions button.del:hover{border-color:var(--danger);color:var(--danger)}
+
+/* List */
+.list .card{flex-direction:row;align-items:center;border-radius:10px;margin-bottom:8px}
+.list .thumb{width:54px;height:54px;font-size:26px;flex-shrink:0}
+.list .info{flex:1;display:flex;align-items:center;gap:16px}
+.list .info .nm{flex:1}
+.list .info .mt{margin:0;white-space:nowrap}
+.list .chk{top:50%;transform:translateY(-50%);left:-26px}
+.list .card:hover .chk{left:6px}
+.list .actions{position:static;opacity:1;padding-right:10px}
+.list .grid{display:block}
+.list-wrap{display:block}
+
+.empty{text-align:center;color:var(--muted);padding:70px 20px}
+.empty .big{font-size:60px;margin-bottom:10px}
+
+/* Dropzone */
+.drop{position:fixed;inset:0;background:rgba(47,107,255,.88);color:#fff;display:none;place-items:center;font-size:26px;font-weight:700;z-index:50;text-align:center}
+.drop.show{display:grid}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(10,14,24,.7);display:none;align-items:center;justify-content:center;z-index:40;padding:20px}
+.modal.show{display:flex}
+.viewer{background:var(--panel);border-radius:14px;width:min(1000px,100%);height:min(86vh,100%);display:flex;flex-direction:column;overflow:hidden}
+.vhead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.vhead .nm{font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vhead button{padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg)}
+.vhead button:hover{border-color:var(--brand)}
+.vhead .danger:hover{border-color:var(--danger);color:var(--danger)}
+.vbody{flex:1;overflow:auto;display:grid;place-items:center;background:var(--bg);position:relative}
+.vbody img{max-width:100%;max-height:100%;object-fit:contain}
+.vbody video{max-width:100%;max-height:100%}
+.vbody iframe{width:100%;height:100%;border:none;background:#fff}
+.vbody pre{width:100%;height:100%;overflow:auto;padding:18px;font:13px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word;align-self:start;background:var(--panel)}
+.nav{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:20px;display:grid;place-items:center}
+.nav.l{left:12px}.nav.r{right:12px}
+.nopreview{text-align:center;color:var(--muted);padding:30px}
+.nopreview .big{font-size:70px}
+.vfoot{padding:8px 16px;font-size:12px;color:var(--muted);border-top:1px solid var(--line);display:flex;gap:16px;flex-wrap:wrap}
+
+.dialog{background:var(--panel);border-radius:14px;padding:22px;width:min(420px,100%);box-shadow:var(--shadow)}
+.dialog h3{margin-bottom:8px}
+.dialog p{color:var(--muted);margin-bottom:16px;word-break:break-word}
+.dialog input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);margin-bottom:16px}
+.dialog .row{display:flex;gap:10px;justify-content:flex-end}
+.dialog .row button{padding:9px 16px;border-radius:9px;border:1px solid var(--line)}
+.dialog .row .ok{background:var(--brand);color:#fff;border-color:var(--brand)}
+.dialog .row .ok.red{background:var(--danger);border-color:var(--danger)}
+
+#toasts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:60}
+.toast{background:#1d2433;color:#fff;padding:11px 16px;border-radius:10px;box-shadow:var(--shadow);animation:in .2s}
+.toast.err{background:var(--danger)}
+@keyframes in{from{opacity:0;transform:translateY(10px)}}
+
+@media (max-width:760px){
+  aside{position:fixed;left:-260px;top:0;bottom:0;z-index:30;transition:.2s;width:250px}
+  aside.open{left:0;box-shadow:var(--shadow)}
+  .menu{display:inline-block!important}
+  .list .info .mt.hide-s{display:none}
+}
+.menu{display:none}
+
+/* Login */
+body.locked aside,body.locked main{display:none}
+.login{position:fixed;inset:0;z-index:100;display:none;place-items:center;padding:20px;
+  background:radial-gradient(1200px 600px at 20% 0%,rgba(47,107,255,.18),transparent),var(--bg)}
+body.locked .login{display:grid}
+.login-box{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:30px 28px;width:min(380px,100%)}
+.login-box .logo{justify-content:center;margin-bottom:4px;font-size:20px}
+.login-box .sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:22px}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+.pw{position:relative}
+.fld input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);outline:none}
+.fld input:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(47,107,255,.15)}
+.pw input{padding-right:44px}
+.pw .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:8px;display:grid;place-items:center}
+.pw .eye:hover{background:var(--line)}
+.login-err{color:var(--danger);font-size:13px;min-height:18px;margin-bottom:8px;text-align:center}
+.login-box .btn-primary{width:100%;margin-bottom:0}
+.login-box.shake{animation:shake .35s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.side-btns{display:flex;gap:6px;margin-top:8px}
+.side-btns button{flex:1;padding:8px 6px;border:1px solid var(--line);border-radius:9px;font-size:12px;color:var(--muted)}
+.side-btns button:hover{border-color:var(--brand);color:var(--brand)}
+.dialog .fld{margin-bottom:12px}
+.dialog .fld input{margin-bottom:0}
+.dialog .msg{color:var(--danger);font-size:13px;min-height:18px;margin-bottom:8px}
+
+/* Nuvem */
+#dlgModal{z-index:120}
+#toasts{z-index:130}
+.thumb{position:relative}
+.cb{position:absolute;bottom:6px;right:6px;font-size:11px;line-height:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px 6px;color:var(--muted)}
+.cb.ok{color:var(--ok)}
+.cb.err{color:var(--danger);border-color:var(--danger)}
+.cloudbox{margin-top:8px;font-size:12px;color:var(--muted);padding:10px;border:1px solid var(--line);border-radius:10px}
+.linkbtn{display:block;margin:14px auto 0;color:var(--muted);font-size:13px;text-decoration:underline}
+.linkbtn:hover{color:var(--brand)}
+.dialog.wide{width:min(600px,100%);max-height:92vh;overflow:auto}
+.dialog textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font:12px/1.4 ui-monospace,Consolas,monospace;resize:vertical;outline:none}
+.dialog h4{margin:16px 0 8px;font-size:14px}
+.dialog .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dialog details{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:6px;font-size:13px;color:var(--muted)}
+.dialog details summary{cursor:pointer;font-weight:600;color:var(--text)}
+.dialog details ol{margin:8px 0 0 18px;line-height:1.6}
+.dialog details code{background:var(--bg);padding:1px 5px;border-radius:5px;font-size:12px}
+.dialog details pre{background:var(--bg);padding:8px;border-radius:8px;overflow:auto;font-size:11.5px;margin:6px 0;color:var(--text)}
+.dialog .row.wrap{flex-wrap:wrap;justify-content:space-between}
+.dialog .row .danger-o{color:var(--danger);border-color:var(--danger)}
+</style>
+</head>
+<body class="locked">
+
+<div class="login" id="login">
+  <form class="login-box" id="loginBox" autocomplete="on">
+    <div class="logo"><span class="ic">🗄️</span> Cofre de Arquivos</div>
+    <div class="sub">Acesso restrito — entre com seu login</div>
+    <div class="fld"><label for="lgUser">Login</label>
+      <input id="lgUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+    <div class="fld"><label for="lgPass">Senha</label>
+      <div class="pw"><input id="lgPass" name="password" type="password" autocomplete="current-password" required>
+      <button type="button" class="eye" id="lgEye" title="Mostrar/ocultar senha">👁</button></div></div>
+    <div class="login-err" id="lgErr"></div>
+    <button type="submit" class="btn-primary">Entrar</button>
+    <button type="button" class="linkbtn" id="lgCloud">⚙ Configurar nuvem neste dispositivo</button>
+  </form>
+</div>
+
+<aside id="side">
+  <div class="logo"><span class="ic">🗄️</span> Cofre de Arquivos</div>
+  <button class="btn-primary" id="btnAdd">＋ Inserir arquivos</button>
+  <div id="cats"></div>
+  <div class="usage">
+    <div id="usageTxt">Calculando…</div>
+    <div class="bar"><i id="usageBar"></i></div>
+    <div id="usageSub"></div>
+  </div>
+  <div class="cloudbox">
+    <div id="cloudTxt">☁ Nuvem não configurada</div>
+    <div class="side-btns">
+      <button id="btnSync" title="Sincronizar agora">🔄 Sincronizar</button>
+      <button id="btnCloud" title="Configurar nuvem">⚙ Nuvem</button>
+    </div>
+  </div>
+  <div class="side-btns">
+    <button id="btnPass" title="Trocar senha">🔑 Trocar senha</button>
+    <button id="btnLogout" title="Sair">🚪 Sair</button>
+  </div>
+</aside>
+
+<main>
+  <header>
+    <button class="icon-btn menu" id="btnMenu">☰</button>
+    <div class="search">🔍 <input id="q" placeholder="Buscar por nome ou tipo…"></div>
+    <select id="sort">
+      <option value="added-desc">Mais recentes</option>
+      <option value="added-asc">Mais antigos</option>
+      <option value="name-asc">Nome (A–Z)</option>
+      <option value="name-desc">Nome (Z–A)</option>
+      <option value="size-desc">Maior tamanho</option>
+      <option value="size-asc">Menor tamanho</option>
+    </select>
+    <button class="icon-btn" id="btnSelMode" title="Selecionar vários">☑ Selecionar</button>
+    <button class="icon-btn on" id="vGrid" title="Grade">▦</button>
+    <button class="icon-btn" id="vList" title="Lista">☰</button>
+  </header>
+
+  <div class="content" id="content">
+    <div class="title-row"><h2 id="ttl">Todos os arquivos</h2><small id="cnt"></small></div>
+    <div class="selbar" id="selbar">
+      <b id="selN">0 selecionados</b><span class="sp"></span>
+      <button id="selAll">Selecionar todos</button>
+      <button id="selDl">⬇ Baixar</button>
+      <button id="selDel">🗑 Excluir</button>
+      <button id="selClr">✕</button>
+    </div>
+    <div id="files"></div>
+  </div>
+</main>
+
+<input type="file" id="fileInput" multiple hidden>
+<div class="drop" id="drop">📥 Solte os arquivos aqui para anexar</div>
+
+<div class="modal" id="viewModal">
+  <div class="viewer">
+    <div class="vhead">
+      <span id="vIcon" style="font-size:20px"></span>
+      <span class="nm" id="vName"></span>
+      <button id="vRename">✏ Renomear</button>
+      <button id="vDl">⬇ Baixar</button>
+      <button id="vDel" class="danger">🗑 Excluir</button>
+      <button id="vClose">✕</button>
+    </div>
+    <div class="vbody" id="vBody"></div>
+    <div class="vfoot" id="vFoot"></div>
+  </div>
+</div>
+
+<div class="modal" id="dlgModal"><div class="dialog" id="dlg"></div></div>
+<div id="toasts"></div>
+
+<script>
+/* =====================================================================
+   CAMADA DE ARMAZENAMENTO (adapter)
+   Hoje: IndexedDB local (guarda os arquivos de verdade, sem limite de 5MB).
+   Para integrar Firebase / GitHub depois, basta criar outro adapter com
+   os mesmos métodos: list(), get(id), put(rec), remove(id)
+   e registrar em STORES. A interface não precisa mudar.
+   ===================================================================== */
+const LocalStore = (() => {
+  let db;
+  const open = () => new Promise((res, rej) => {
+    if (db) return res(db);
+    const r = indexedDB.open('cofre-arquivos', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('files', { keyPath: 'id' });
+    r.onsuccess = () => { db = r.result; res(db); };
+    r.onerror = () => rej(r.error);
+  });
+  const tx = async (mode, fn) => {
+    const d = await open();
+    return new Promise((res, rej) => {
+      const t = d.transaction('files', mode);
+      const req = fn(t.objectStore('files'));
+      t.oncomplete = () => res(req && req.result);
+      t.onerror = () => rej(t.error);
+    });
+  };
+  return {
+    name: 'Local (IndexedDB)',
+    list: () => tx('readonly', s => s.getAll()),
+    get: id => tx('readonly', s => s.get(id)),
+    put: rec => tx('readwrite', s => s.put(rec)),
+    remove: id => tx('readwrite', s => s.delete(id)),
+  };
+})();
+// Futuro: const FirebaseStore = {...}; const GithubStore = {...};
+const STORES = { local: LocalStore };
+const store = STORES.local;
+
+/* =====================================================================
+   CATEGORIAS
+   ===================================================================== */
+const CATS = [
+  { id: 'all',   label: 'Todos',      icon: '🗂️' },
+  { id: 'doc',   label: 'Documentos', icon: '📄' },
+  { id: 'img',   label: 'Imagens',    icon: '🖼️' },
+  { id: 'vid',   label: 'Vídeos',     icon: '🎬' },
+  { id: 'aud',   label: 'Áudios',     icon: '🎵' },
+  { id: 'prog',  label: 'Programas',  icon: '💾' },
+  { id: 'other', label: 'Outros',     icon: '📦' },
+];
+const EXT = {
+  doc: 'pdf doc docx odt rtf txt md xls xlsx ods csv ppt pptx odp json xml html htm css js ts py java c cpp cs sql log yml yaml ini tsv',
+  img: 'jpg jpeg png gif webp bmp svg ico tiff avif heic',
+  vid: 'mp4 mov avi mkv webm wmv flv m4v 3gp',
+  aud: 'mp3 wav ogg flac aac m4a wma opus',
+  prog: 'exe msi apk dmg pkg deb rpm jar bat sh app iso appimage zip rar 7z tar gz',
+};
+const TEXT_EXT = 'txt md csv tsv json xml html htm css js ts py java c cpp cs sql log yml yaml ini sh bat php rb go rs';
+
+const ext = n => (n.includes('.') ? n.split('.').pop().toLowerCase() : '');
+function categorize(name, type) {
+  const e = ext(name);
+  if (type.startsWith('image/')) return 'img';
+  if (type.startsWith('video/')) return 'vid';
+  if (type.startsWith('audio/')) return 'aud';
+  for (const k of ['prog', 'img', 'vid', 'aud', 'doc']) if (EXT[k].split(' ').includes(e)) return k;
+  if (type.startsWith('text/') || type === 'application/pdf') return 'doc';
+  return 'other';
+}
+function iconFor(f) {
+  const e = ext(f.name);
+  if (e === 'pdf') return '📕';
+  if (['xls', 'xlsx', 'csv', 'ods'].includes(e)) return '📊';
+  if (['ppt', 'pptx', 'odp'].includes(e)) return '📽️';
+  if (['doc', 'docx', 'odt', 'rtf'].includes(e)) return '📘';
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(e)) return '🗜️';
+  return CATS.find(c => c.id === f.cat)?.icon || '📦';
+}
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  const u = ['KB', 'MB', 'GB', 'TB']; let i = -1;
+  do { b /= 1024; i++; } while (b >= 1024 && i < 3);
+  return b.toFixed(b < 10 ? 1 : 0) + ' ' + u[i];
+}
+const fmtDate = t => new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* =====================================================================
+   ESTADO
+   ===================================================================== */
+let files = [];          // registros (com blob)
+let cat = 'all', query = '', sortBy = 'added-desc', view = 'grid';
+let selMode = false; const selected = new Set();
+let current = null;      // id aberto no visualizador
+let viewList = [];       // lista atual (para navegar prev/next)
+const thumbs = new Map(); // id -> objectURL
+const $ = id => document.getElementById(id);
+
+/* ===== Toast ===== */
+function toast(msg, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : '');
+  d.textContent = msg; $('toasts').appendChild(d);
+  setTimeout(() => d.remove(), 3200);
+}
+
+/* ===== Diálogos próprios (confirm/prompt podem ser bloqueados) ===== */
+function dialog({ title, text, input, okLabel = 'OK', danger, password }) {
+  return new Promise(res => {
+    $('dlg').className = 'dialog'; $('dlg').onkeydown = null;
+    $('dlg').innerHTML = `<h3>${esc(title)}</h3>${text ? `<p>${esc(text)}</p>` : ''}
+      ${input !== undefined ? `<input id="dlgIn" type="${password ? 'password' : 'text'}" autocomplete="${password ? 'off' : 'on'}" value="${esc(input)}">` : ''}
+      <div class="row"><button id="dlgNo">Cancelar</button><button id="dlgOk" class="ok ${danger ? 'red' : ''}">${okLabel}</button></div>`;
+    $('dlgModal').classList.add('show');
+    const inp = $('dlgIn'); if (inp) { inp.focus(); inp.select(); }
+    const close = v => { $('dlgModal').classList.remove('show'); res(v); };
+    $('dlgNo').onclick = () => close(null);
+    $('dlgOk').onclick = () => close(inp ? inp.value.trim() : true);
+    if (inp) inp.onkeydown = e => { if (e.key === 'Enter') $('dlgOk').click(); if (e.key === 'Escape') close(null); };
+  });
+}
+
+/* =====================================================================
+   AÇÕES: inserir / baixar / excluir / renomear
+   ===================================================================== */
+async function addFiles(list) {
+  const arr = [...list]; if (!arr.length) return;
+  let ok = 0;
+  for (const f of arr) {
+    try {
+      await store.put({
+        id: uid(), name: f.name, type: f.type || 'application/octet-stream',
+        size: f.size, cat: categorize(f.name, f.type || ''), added: Date.now(), blob: f,
+      });
+      ok++;
+    } catch (e) { toast('Falha ao salvar ' + f.name, true); console.error(e); }
+  }
+  await reload();
+  if (ok) toast(`${ok} arquivo(s) inserido(s)`);
+  pushPending();
+}
+
+function triggerDownload(rec) {
+  const url = URL.createObjectURL(rec.blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = rec.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+async function download(ids) {
+  for (const id of ids) {
+    const rec = files.find(f => f.id === id); if (!rec) continue;
+    try { if (!rec.blob) toast('Baixando da nuvem…'); await ensureBlob(rec); }
+    catch (e) { toast('Falha ao baixar ' + rec.name + ': ' + e.message, true); continue; }
+    triggerDownload(rec);
+    if (ids.length > 1) await new Promise(r => setTimeout(r, 350));
+  }
+}
+async function remove(ids) {
+  const names = ids.map(id => files.find(f => f.id === id)?.name).filter(Boolean);
+  const ok = await dialog({
+    title: ids.length > 1 ? `Excluir ${ids.length} arquivos?` : 'Excluir arquivo?',
+    text: ids.length > 1 ? 'Esta ação não pode ser desfeita.' : `"${names[0]}" será removido permanentemente.`,
+    okLabel: 'Excluir', danger: true,
+  });
+  if (!ok) return false;
+  let fail = 0;
+  for (const id of ids) {
+    const rec = files.find(f => f.id === id);
+    try { if (rec) await cloudDelete(rec); }
+    catch (e) { fail++; toast('Não foi possível excluir "' + rec.name + '" da nuvem: ' + e.message, true); continue; }
+    await store.remove(id); selected.delete(id);
+  }
+  await reload(); if (!fail) toast('Excluído(s) com sucesso');
+  return fail === 0;
+}
+async function rename(id) {
+  const rec = files.find(f => f.id === id); if (!rec) return;
+  const nn = await dialog({ title: 'Renomear arquivo', input: rec.name, okLabel: 'Salvar' });
+  if (!nn || nn === rec.name) return;
+  rec.name = nn; rec.cat = categorize(nn, rec.type);
+  await store.put(rec);
+  if (cloud.on && rec.cloud === 'synced') cloud.db.ref(COL + '/' + rec.id).update({ name: rec.name, cat: rec.cat, updated: Date.now() })
+    .catch(e => toast('Renomeado só neste dispositivo: ' + e.message, true));
+  await reload(); toast('Renomeado');
+  if (current === id) openViewer(id);
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function filtered() {
+  const q = query.toLowerCase();
+  let l = files.filter(f => (cat === 'all' || f.cat === cat) &&
+    (!q || f.name.toLowerCase().includes(q) || (ext(f.name)).includes(q)));
+  const [k, d] = sortBy.split('-'); const m = d === 'asc' ? 1 : -1;
+  l.sort((a, b) => (k === 'name' ? a.name.localeCompare(b.name, 'pt-BR') : a[k] - b[k]) * m);
+  return l;
+}
+function thumbURL(f) {
+  if (f.cat !== 'img' || !f.type.startsWith('image/') || !f.blob) return null;
+  if (!thumbs.has(f.id)) thumbs.set(f.id, URL.createObjectURL(f.blob));
+  return thumbs.get(f.id);
+}
+function renderCats() {
+  $('cats').innerHTML = CATS.map(c => {
+    const n = c.id === 'all' ? files.length : files.filter(f => f.cat === c.id).length;
+    return `<button class="cat ${cat === c.id ? 'active' : ''}" data-c="${c.id}">${c.icon} ${c.label}<span class="n">${n}</span></button>`;
+  }).join('');
+  $('cats').querySelectorAll('.cat').forEach(b => b.onclick = () => {
+    cat = b.dataset.c; $('side').classList.remove('open'); render();
+  });
+}
+function render() {
+  renderCats();
+  viewList = filtered();
+  const c = CATS.find(x => x.id === cat);
+  $('ttl').textContent = c.id === 'all' ? 'Todos os arquivos' : c.label;
+  $('cnt').textContent = `${viewList.length} item(ns)`;
+  const box = $('files');
+  box.className = (view === 'list' ? 'list ' : '') + (selMode ? 'selmode' : '');
+  if (!viewList.length) {
+    box.innerHTML = `<div class="empty"><div class="big">${files.length ? '🔎' : '📭'}</div>
+      <h3>${files.length ? 'Nada encontrado' : 'Nenhum arquivo ainda'}</h3>
+      <p>${files.length ? 'Tente outra busca ou categoria.' : 'Clique em “Inserir arquivos” ou arraste e solte aqui.'}</p></div>`;
+  } else {
+    box.innerHTML = `<div class="grid">${viewList.map(f => {
+      const t = thumbURL(f);
+      return `<div class="card ${selected.has(f.id) ? 'sel' : ''}" data-id="${f.id}">
+        <input type="checkbox" class="chk" ${selected.has(f.id) ? 'checked' : ''}>
+        <div class="thumb">${t ? `<img src="${t}" alt="" loading="lazy">` : iconFor(f)}${badge(f)}</div>
+        <div class="info"><div class="nm" title="${esc(f.name)}">${esc(f.name)}</div>
+          <div class="mt">${fmtSize(f.size)}</div><div class="mt hide-s">${fmtDate(f.added)}</div></div>
+        <div class="actions">
+          <button data-a="view" title="Visualizar">👁</button>
+          <button data-a="dl" title="Baixar">⬇</button>
+          <button data-a="del" class="del" title="Excluir">🗑</button>
+        </div></div>`;
+    }).join('')}</div>`;
+  }
+  updateSelBar(); updateUsage(); updateCloudUI();
+}
+function updateSelBar() {
+  $('selbar').classList.toggle('show', selected.size > 0 || selMode);
+  $('selN').textContent = `${selected.size} selecionado(s)`;
+  $('btnSelMode').classList.toggle('on', selMode);
+}
+async function updateUsage() {
+  const total = files.reduce((s, f) => s + f.size, 0);
+  $('usageTxt').textContent = `${files.length} arquivo(s) · ${fmtSize(total)}`;
+  try {
+    const e = await navigator.storage.estimate();
+    if (e.quota) {
+      $('usageBar').style.width = Math.max(1, (e.usage / e.quota) * 100) + '%';
+      $('usageSub').textContent = `Navegador: ${fmtSize(e.usage)} de ${fmtSize(e.quota)}`;
+    }
+  } catch { $('usageSub').textContent = ''; }
+}
+async function reload() { files = await store.list(); render(); }
+
+/* =====================================================================
+   VISUALIZADOR
+   ===================================================================== */
+let viewerURL = null;
+async function openViewer(id) {
+  const f = files.find(x => x.id === id); if (!f) return;
+  current = id;
+  if (!f.blob) {
+    $('vIcon').textContent = iconFor(f); $('vName').textContent = f.name; $('vFoot').innerHTML = '';
+    $('vBody').innerHTML = '<div class="nopreview"><div class="big">☁</div><p>Baixando da nuvem…</p></div>';
+    $('viewModal').classList.add('show');
+    try { await ensureBlob(f); }
+    catch (e) { $('vBody').innerHTML = `<div class="nopreview"><div class="big">⚠</div><p>Não foi possível baixar: ${esc(e.message)}</p></div>`; return; }
+    if (current !== id) return;
+    render();
+  }
+  if (viewerURL) { URL.revokeObjectURL(viewerURL); viewerURL = null; }
+  $('vIcon').textContent = iconFor(f);
+  $('vName').textContent = f.name;
+  $('vFoot').innerHTML = `<span>Tipo: ${esc(f.type || 'desconhecido')}</span><span>Tamanho: ${fmtSize(f.size)}</span><span>Inserido: ${fmtDate(f.added)}</span>`;
+  const body = $('vBody'); body.innerHTML = '';
+  const e = ext(f.name);
+  const isText = f.type.startsWith('text/') || TEXT_EXT.split(' ').includes(e) || f.type === 'application/json';
+  const needsURL = f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/') || f.type === 'application/pdf' || e === 'pdf';
+  if (needsURL) {
+    const type = e === 'pdf' ? 'application/pdf' : f.type;
+    viewerURL = URL.createObjectURL(new Blob([f.blob], { type }));
+  }
+  if (f.type.startsWith('image/')) body.innerHTML = `<img src="${viewerURL}" alt="">`;
+  else if (f.type.startsWith('video/')) body.innerHTML = `<video src="${viewerURL}" controls autoplay></video>`;
+  else if (f.type.startsWith('audio/')) body.innerHTML = `<div class="nopreview"><div class="big">🎵</div><p>${esc(f.name)}</p><audio src="${viewerURL}" controls autoplay style="margin-top:14px;width:min(420px,80vw)"></audio></div>`;
+  else if (f.type === 'application/pdf' || e === 'pdf') body.innerHTML = `<iframe src="${viewerURL}"></iframe>`;
+  else if (isText && f.size <= 3 * 1024 * 1024) {
+    const txt = await f.blob.text();
+    const pre = document.createElement('pre'); pre.textContent = txt; body.appendChild(pre);
+  } else {
+    body.innerHTML = `<div class="nopreview"><div class="big">${iconFor(f)}</div>
+      <h3 style="margin:10px 0 6px">Pré-visualização indisponível</h3>
+      <p>Este tipo de arquivo não pode ser exibido no navegador.<br>Use o botão “Baixar” para abri-lo.</p></div>`;
+  }
+  // navegação
+  const idx = viewList.findIndex(x => x.id === id);
+  if (viewList.length > 1) {
+    const mk = (cls, ch, to) => { const b = document.createElement('button'); b.className = 'nav ' + cls; b.textContent = ch; b.onclick = () => openViewer(viewList[(idx + to + viewList.length) % viewList.length].id); body.appendChild(b); };
+    mk('l', '‹', -1); mk('r', '›', 1);
+  }
+  $('viewModal').classList.add('show');
+}
+function closeViewer() {
+  $('viewModal').classList.remove('show'); $('vBody').innerHTML = '';
+  if (viewerURL) { URL.revokeObjectURL(viewerURL); viewerURL = null; }
+  current = null;
+}
+
+/* =====================================================================
+   EVENTOS
+   ===================================================================== */
+$('btnAdd').onclick = () => $('fileInput').click();
+$('fileInput').onchange = e => { addFiles(e.target.files); e.target.value = ''; };
+$('q').oninput = e => { query = e.target.value; render(); };
+$('sort').onchange = e => { sortBy = e.target.value; render(); };
+$('vGrid').onclick = () => { view = 'grid'; $('vGrid').classList.add('on'); $('vList').classList.remove('on'); render(); };
+$('vList').onclick = () => { view = 'list'; $('vList').classList.add('on'); $('vGrid').classList.remove('on'); render(); };
+$('btnMenu').onclick = () => $('side').classList.toggle('open');
+$('btnSelMode').onclick = () => { selMode = !selMode; if (!selMode) selected.clear(); render(); };
+
+$('files').addEventListener('click', e => {
+  const card = e.target.closest('.card'); if (!card) return;
+  const id = card.dataset.id;
+  const btn = e.target.closest('button[data-a]');
+  if (btn) {
+    e.stopPropagation();
+    if (btn.dataset.a === 'view') openViewer(id);
+    if (btn.dataset.a === 'dl') download([id]);
+    if (btn.dataset.a === 'del') remove([id]);
+    return;
+  }
+  if (e.target.classList.contains('chk') || selMode) {
+    selected.has(id) ? selected.delete(id) : selected.add(id);
+    render(); return;
+  }
+  openViewer(id);
+});
+
+$('selAll').onclick = () => { viewList.forEach(f => selected.add(f.id)); render(); };
+$('selClr').onclick = () => { selected.clear(); selMode = false; render(); };
+$('selDl').onclick = () => selected.size ? download([...selected]) : toast('Nada selecionado', true);
+$('selDel').onclick = async () => { if (!selected.size) return toast('Nada selecionado', true); if (await remove([...selected])) { selMode = false; render(); } };
+
+$('vClose').onclick = closeViewer;
+$('viewModal').onclick = e => { if (e.target.id === 'viewModal') closeViewer(); };
+$('vDl').onclick = () => current && download([current]);
+$('vRename').onclick = () => current && rename(current);
+$('vDel').onclick = async () => { const id = current; if (id && await remove([id])) closeViewer(); };
+
+document.addEventListener('keydown', e => {
+  if ($('dlgModal').classList.contains('show')) return;
+  if (!$('viewModal').classList.contains('show')) return;
+  if (e.key === 'Escape') closeViewer();
+  const idx = viewList.findIndex(x => x.id === current);
+  if (e.key === 'ArrowRight' && viewList.length > 1) openViewer(viewList[(idx + 1) % viewList.length].id);
+  if (e.key === 'ArrowLeft' && viewList.length > 1) openViewer(viewList[(idx - 1 + viewList.length) % viewList.length].id);
+});
+
+/* Arrastar e soltar */
+let dragN = 0;
+addEventListener('dragenter', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { dragN++; $('drop').classList.add('show'); } });
+addEventListener('dragleave', () => { dragN = Math.max(0, dragN - 1); if (!dragN) $('drop').classList.remove('show'); });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', e => { e.preventDefault(); dragN = 0; $('drop').classList.remove('show'); if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); });
+
+/* Colar imagens (Ctrl+V) */
+addEventListener('paste', e => {
+  const fl = [...(e.clipboardData?.files || [])];
+  if (fl.length) addFiles(fl.map((f, i) => f.name && f.name !== 'image.png' ? f : new File([f], `colado-${Date.now()}-${i}.${(f.type.split('/')[1] || 'png')}`, { type: f.type })));
+});
+
+/* =====================================================================
+   NUVEM: Firebase (login + índice em tempo real) + GitHub (arquivos)
+   - Firebase Auth: login com e-mail/senha (a senha é a mesma do login)
+   - Realtime Database: lista de arquivos sincronizada em tempo real
+   - GitHub (repositório PRIVADO): guarda o conteúdo dos arquivos
+   ===================================================================== */
+const CLOUD_KEY = 'cofre-cloud', COL = 'cofre_files', GH_API = 'https://api.github.com', GH_MAX = 50 * 1024 * 1024;
+const cloud = { on: false, db: null, user: null, unsub: null, err: '' };
+let _cloud = null, fbReady = null, offlineMode = false, snapChain = Promise.resolve();
+
+/* Configuração embutida (nada secreto): qualquer aparelho que abrir o link já conecta e
+   consegue VER e BAIXAR os arquivos. Só o token do GitHub (enviar/excluir) fica por aparelho. */
+const CLOUD_DEFAULTS = {
+  fb: {
+    apiKey: 'AIzaSyAVE5LmFYK9FAOiv5zTnC6qNR8nXElQAh8',
+    authDomain: 'cofre-58736.firebaseapp.com',
+    projectId: 'cofre-58736',
+    storageBucket: 'cofre-58736.firebasestorage.app',
+    messagingSenderId: '425475231849',
+    appId: '1:425475231849:web:f0c0ce56ac0f34af6dd2f8',
+    databaseURL: 'https://cofre-58736-default-rtdb.firebaseio.com'
+  },
+  fbEmail: '',
+  gh: { repo: 'Credenciado/integracao', branch: 'main', folder: 'arquivos' }
+};
+function getCloud() {
+  if (!_cloud) {
+    let s = {}; try { s = JSON.parse(localStorage.getItem(CLOUD_KEY)) || {}; } catch {}
+    _cloud = { ...CLOUD_DEFAULTS, ...s, fb: { ...CLOUD_DEFAULTS.fb, ...(s.fb || {}) }, gh: { ...CLOUD_DEFAULTS.gh, ...(s.gh || {}) } };
+    if (/^credenciado\/cofre-dados$/i.test(_cloud.gh.repo)) _cloud.gh.repo = CLOUD_DEFAULTS.gh.repo; // repositório renomeado
+  }
+  return _cloud;
+}
+function saveCloud(c) {
+  try {
+    localStorage.setItem(CLOUD_KEY, JSON.stringify(c));
+    if (localStorage.getItem(CLOUD_KEY) === null) return false;
+    _cloud = null; return true; // recalcula (padrão + salvo) no próximo getCloud()
+  } catch { return false; }
+}
+const cloudCfgOk = c => !!(c && c.fb && c.fb.apiKey && c.fb.projectId && c.fb.appId && c.gh && c.gh.repo);
+const hasToken = () => !!(getCloud().gh && getCloud().gh.token);
+let warnedNoToken = false, askedUnlock = false;
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    if (document.querySelector(`script[src="${src}"]`)) return res();
+    const s = document.createElement('script'); s.src = src; s.onload = res;
+    s.onerror = () => rej(new Error('Não foi possível carregar o Firebase (sem internet?)'));
+    document.head.appendChild(s);
+  });
+}
+function initFirebase() {
+  const c = getCloud();
+  if (!cloudCfgOk(c)) return Promise.reject(new Error('Nuvem não configurada'));
+  if (fbReady) return fbReady;
+  fbReady = (async () => {
+    const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+    await loadScript(base + 'firebase-app-compat.js');
+    await Promise.all([loadScript(base + 'firebase-auth-compat.js'), loadScript(base + 'firebase-database-compat.js')]);
+    const cfg = { ...c.fb };
+    if (!cfg.databaseURL) cfg.databaseURL = `https://${cfg.projectId}-default-rtdb.firebaseio.com`;
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    const auth = firebase.auth();
+    await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+    return { auth, db: firebase.database() };
+  })();
+  fbReady.catch(() => { fbReady = null; });
+  return fbReady;
+}
+
+/* ---- GitHub (API de conteúdo) ---- */
+const blobToB64 = b => new Promise((res, rej) => {
+  const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(r.error); r.readAsDataURL(b);
+});
+const safeName = n => n.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.\-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 80) || 'arquivo';
+const ghUrl = p => `${GH_API}/repos/${getCloud().gh.repo}/contents/${p.split('/').map(encodeURIComponent).join('/')}`;
+const ghBranch = () => getCloud().gh.branch || 'main';
+function ghFetch(url, opts = {}) {
+  const auth = hasToken() ? { Authorization: 'Bearer ' + String(getCloud().gh.token).trim() } : {};
+  return fetch(url, { ...opts, headers: { ...auth, 'X-GitHub-Api-Version': '2022-11-28', Accept: 'application/vnd.github+json', ...(opts.headers || {}) } });
+}
+async function ghErr(r) { let m = ''; try { m = (await r.json()).message; } catch {} return new Error(`GitHub ${r.status}${m ? ': ' + m : ''}`); }
+/* Descobre o nome atual do repositório (se foi renomeado) e diagnostica falhas de rede */
+async function ghCanonical() {
+  try {
+    const r = await ghFetch(`${GH_API}/repos/${getCloud().gh.repo}`);
+    if (r.ok) {
+      const j = await r.json();
+      if (j.full_name && j.full_name.toLowerCase() !== getCloud().gh.repo.toLowerCase()) {
+        const s0 = (() => { try { return JSON.parse(localStorage.getItem(CLOUD_KEY)) || {}; } catch { return {}; } })();
+        s0.gh = { ...(s0.gh || {}), repo: j.full_name }; saveCloud(s0);
+      }
+      return 'ok';
+    }
+    return r.status;
+  } catch { return 'rede'; }
+}
+async function ghUpload(rec) {
+  let last;
+  for (let i = 0; i < 3; i++) {
+    try { return await ghUploadOnce(rec); }
+    catch (e) {
+      last = e;
+      if (!(e instanceof TypeError)) throw e; // só repete falhas de conexão
+      await ghCanonical(); await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+    }
+  }
+  const d = await ghCanonical(), repo = getCloud().gh.repo;
+  const why = d === 'rede' ? 'sem conexão com o GitHub (internet instável ou bloqueio da rede/navegador)'
+    : d === 401 ? 'token inválido ou vencido — gere outro e proteja com o código'
+    : (d === 403 || d === 404) ? `o token não tem acesso ao repositório ${repo} (confira o nome e as permissões Contents: leitura e escrita)`
+    : d === 'ok' ? 'o GitHub respondeu, mas o envio foi interrompido (conexão instável ou arquivo grande)' : 'resposta inesperada do GitHub (' + d + ')';
+  throw new Error('Falha de conexão: ' + why);
+}
+async function ghUploadOnce(rec) {
+  const g = getCloud().gh, branch = ghBranch();
+  const path = `${g.folder || 'arquivos'}/${rec.id}-${safeName(rec.name)}`;
+  const content = await blobToB64(rec.blob);
+  const put = sha => ghFetch(ghUrl(path), { method: 'PUT', body: JSON.stringify({ message: `Adiciona ${rec.name}`, content, branch, ...(sha ? { sha } : {}) }) });
+  let r = await put();
+  if (r.status === 422 || r.status === 409) { // já existe (tentativa anterior) → sobrescreve
+    const m = await ghFetch(ghUrl(path) + `?ref=${encodeURIComponent(branch)}`);
+    if (m.ok) { const { sha } = await m.json(); r = await put(sha); }
+  }
+  if (!r.ok) throw await ghErr(r);
+  const j = await r.json();
+  return { path, sha: j.content.sha };
+}
+async function ghDownload(path) {
+  if (!hasToken()) { // sem token: leitura direta do repositório público (sem limite da API)
+    const g = getCloud().gh;
+    const r0 = await fetch(`https://raw.githubusercontent.com/${g.repo}/${encodeURIComponent(ghBranch())}/${path.split('/').map(encodeURIComponent).join('/')}`);
+    if (!r0.ok) throw new Error(`GitHub ${r0.status} (arquivo inexistente ou repositório privado — cole o token em ⚙ Nuvem)`);
+    return r0.blob();
+  }
+  const r = await ghFetch(ghUrl(path) + `?ref=${encodeURIComponent(ghBranch())}`, { headers: { Accept: 'application/vnd.github.raw+json' } });
+  if (!r.ok) throw await ghErr(r);
+  return r.blob();
+}
+async function ghDelete(path) {
+  const branch = ghBranch();
+  const m = await ghFetch(ghUrl(path) + `?ref=${encodeURIComponent(branch)}`);
+  if (m.status === 404) return;
+  if (!m.ok) throw await ghErr(m);
+  const { sha } = await m.json();
+  const r = await ghFetch(ghUrl(path), { method: 'DELETE', body: JSON.stringify({ message: `Remove ${path}`, sha, branch }) });
+  if (!r.ok && r.status !== 404) throw await ghErr(r);
+}
+
+/* ---- Estado visual ---- */
+function badge(f) {
+  if (!cloudCfgOk(getCloud())) return '';
+  if (f.cloud === 'synced') return '<span class="cb ok" title="Salvo na nuvem">☁ ✓</span>';
+  if (f.cloud === 'error') return `<span class="cb err" title="${esc(f.err || 'Erro ao enviar')}" onclick="event.stopPropagation();toast(${esc(JSON.stringify('Erro ao enviar “' + f.name + '”: ' + (f.err || 'desconhecido')))},true)">⚠</span>`;
+  return '<span class="cb" title="Aguardando envio">⏳</span>';
+}
+function updateCloudUI() {
+  const el = $('cloudTxt'); if (!el) return;
+  if (!cloudCfgOk(getCloud())) { el.textContent = '☁ Nuvem não configurada — clique em ⚙ Nuvem'; return; }
+  const pend = files.filter(f => f.blob && f.cloud !== 'synced' && f.cloud !== 'error').length;
+  const errs = files.filter(f => f.cloud === 'error').length;
+  if (cloud.on && !hasToken()) el.textContent = '☁ Conectado · só leitura (cole o token em ⚙ Nuvem para enviar/excluir)';
+  else if (cloud.on) el.textContent = '☁ Conectado' + (pend ? ` · enviando ${pend}…` : errs ? ` · ${errs} com erro: ${(files.find(f => f.cloud === 'error' && f.err) || {}).err || 'toque no ⚠ do arquivo'} (use Sincronizar)` : ' · tudo sincronizado');
+  else el.textContent = '⚠ ' + (cloud.err || (offlineMode ? 'Modo offline (somente local)' : 'Conectando…'));
+}
+
+/* ---- Baixar do GitHub sob demanda ---- */
+const inflight = new Map();
+function ensureBlob(f) {
+  if (f.blob) return Promise.resolve(f);
+  if (inflight.has(f.id)) return inflight.get(f.id);
+  const p = (async () => {
+    if (!f.gh) throw new Error('arquivo sem cópia na nuvem');
+    const b = await ghDownload(f.gh.path);
+    f.blob = new Blob([b], { type: f.type });
+    await store.put(f);
+    return f;
+  })().finally(() => inflight.delete(f.id));
+  inflight.set(f.id, p);
+  return p;
+}
+let prefetching = false;
+async function prefetchThumbs() {
+  if (prefetching || !cloudCfgOk(getCloud())) return;
+  prefetching = true;
+  try {
+    const l = files.filter(f => !f.blob && f.gh && f.type.startsWith('image/') && f.size <= 2 * 1024 * 1024).slice(0, 40);
+    for (let i = 0; i < l.length; i++) {
+      try { await ensureBlob(l[i]); } catch { break; }
+      if (i % 5 === 4) render();
+    }
+    if (l.length) render();
+  } finally { prefetching = false; }
+}
+
+/* ---- Código de acesso: guarda o token criptografado (AES-256-GCM, chave PBKDF2 600 mil voltas) ---- */
+const VAULT_PATH = 'cofre_config/vault';
+const u8b64 = u => { let s = ''; u.forEach(x => { s += String.fromCharCode(x); }); return btoa(s); };
+const b64u8 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function vaultKey(code, salt, iter) {
+  if (!(window.crypto && crypto.subtle)) throw new Error('Este navegador não oferece criptografia (use Chrome/Edge ou abra pelo link https).');
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(code), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function vaultEncrypt(token, code) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), iter = 600000;
+  const key = await vaultKey(code, salt, iter);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(token));
+  return { v: 1, iter, salt: u8b64(salt), iv: u8b64(iv), data: u8b64(new Uint8Array(ct)) };
+}
+async function vaultDecrypt(v, code) {
+  const key = await vaultKey(code, b64u8(v.salt), Math.min(Number(v.iter) || 600000, 2000000));
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u8(v.iv) }, key, b64u8(v.data));
+  return new TextDecoder().decode(pt);
+}
+async function protectToken(token, code, hint) {
+  if (!cloud.on) throw new Error('Aguarde aparecer "☁ Conectado" no painel e tente de novo.');
+  const rec = await vaultEncrypt(token, code); rec.hint = String(hint || '').slice(0, 80);
+  await cloud.db.ref(VAULT_PATH).set(rec);
+}
+async function unlockWithCode(code) {
+  const v = (await cloud.db.ref(VAULT_PATH).once('value')).val();
+  if (!v) throw new Error('Ainda não há token protegido. Em um aparelho que já tem o token, use "Proteger token com este código".');
+  let token;
+  try { token = await vaultDecrypt(v, code); } catch { throw new Error('Código incorreto.'); }
+  let s = {}; try { s = JSON.parse(localStorage.getItem(CLOUD_KEY)) || {}; } catch {}
+  s.gh = { ...(s.gh || {}), token };
+  if (!saveCloud(s)) throw new Error('O navegador bloqueou o armazenamento — não foi possível guardar o token neste aparelho.');
+  warnedNoToken = false; updateCloudUI(); pushPending();
+  return token;
+}
+async function promptUnlock(force) {
+  if (!cloud.on || hasToken()) return;
+  let v = null;
+  try { v = (await cloud.db.ref(VAULT_PATH).once('value')).val(); }
+  catch (e) { if (force) toast('Não foi possível ler o código protegido: ' + (e.code || e.message), true); return; }
+  if (!v) { if (force) toast('Ainda não há token protegido. Cole o token em ⚙ Nuvem e use "Proteger token com este código".', true); return; }
+  let note = '';
+  for (;;) {
+    const code = await dialog({ title: 'Liberar envio e exclusão', text: note + 'Digite o seu código de acesso para usar a nuvem completa neste aparelho.' + (v.hint ? ' Palavra de lembrança: “' + v.hint + '”.' : ''), input: '', password: true, okLabel: 'Liberar' });
+    if (!code) return;
+    try { await unlockWithCode(code); toast('Liberado! Envio e exclusão ativados neste aparelho.'); return; }
+    catch (e) { if (e.message !== 'Código incorreto.') { toast(e.message, true); return; } note = 'Código incorreto, tente de novo. '; }
+  }
+}
+
+/* ---- Excluir na nuvem ---- */
+async function cloudDelete(rec) {
+  if (!cloudCfgOk(getCloud())) return;
+  if (!rec.gh && rec.cloud !== 'synced') return; // nunca foi para a nuvem
+  if (!cloud.on) throw new Error('conecte-se à nuvem para excluir arquivos que já foram enviados');
+  if (!hasToken()) throw new Error('cole o token do GitHub em ⚙ Nuvem para excluir');
+  await cloud.db.ref(COL + '/' + rec.id).remove();
+  try { if (rec.gh) await ghDelete(rec.gh.path); }
+  catch (e) { toast('Aviso: o arquivo no GitHub não foi apagado (' + e.message + ')', true); }
+}
+
+/* ---- Enviar para a nuvem ---- */
+async function pushRecord(rec) {
+  const pid = getCloud().fb.projectId;
+  if (rec.size > GH_MAX) { rec.cloud = 'error'; rec.err = 'Maior que 50 MB (limite do GitHub)'; await store.put(rec); return; }
+  try {
+    const { path, sha } = await ghUpload(rec);
+    const cur = await store.get(rec.id);
+    if (!cur) { await ghDelete(path).catch(() => {}); return; } // excluído durante o envio
+    await cloud.db.ref(COL + '/' + rec.id).set({ name: cur.name, type: cur.type, size: cur.size, cat: cur.cat, added: cur.added, ghPath: path, ghSha: sha, updated: Date.now() });
+    cur.gh = { path, sha }; cur.cloud = 'synced'; cur.cloudProject = pid; delete cur.err;
+    await store.put(cur);
+  } catch (e) {
+    const cur = await store.get(rec.id);
+    if (cur) { cur.cloud = 'error'; cur.err = String(e.message || e); await store.put(cur); }
+  }
+}
+let pushing = false;
+async function pushPending(retryErrors) {
+  if (!cloud.on || pushing) return;
+  if (!hasToken()) {
+    if (!warnedNoToken && files.some(f => f.blob && f.cloud !== 'synced')) {
+      warnedNoToken = true;
+      toast('Arquivo salvo só neste aparelho. Digite seu código de acesso para enviar à nuvem.', true);
+      pushing = true; try { await promptUnlock(true); } finally { pushing = false; }
+      if (hasToken()) return pushPending();
+    }
+    return;
+  }
+  pushing = true; keepAwake(true);
+  try {
+    const todo = files.filter(f => f.blob && f.cloud !== 'synced' && (retryErrors || f.cloud !== 'error'));
+    for (const f of todo) { await pushRecord(f); await reload(); }
+    const bad = files.find(f => f.cloud === 'error' && f.err);
+    if (bad) toast('Erro ao enviar “' + bad.name + '”: ' + bad.err, true);
+  } finally { pushing = false; keepAwake(false); updateCloudUI(); }
+}
+
+/* ---- Reenvio automático de falhas de conexão (celular dorme, troca de rede, aba em segundo plano) ---- */
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && navigator.wakeLock && !wakeLock) wakeLock = await navigator.wakeLock.request('screen');
+    else if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch { wakeLock = null; }
+}
+const retryNet = () => {
+  if (document.visibilityState === 'hidden' || !cloud.on || pushing || !hasToken()) return;
+  if (files.some(f => f.cloud === 'error' && /^Falha de conexão|Failed to fetch/i.test(f.err || ''))) pushPending(true);
+};
+window.addEventListener('online', () => setTimeout(retryNet, 1500));
+document.addEventListener('visibilitychange', () => setTimeout(retryNet, 1500));
+setInterval(retryNet, 30000);
+
+/* ---- Receber da nuvem (tempo real) ---- */
+async function reconcile(snap) {
+  if (!cloud.on) return;
+  const pid = getCloud().fb.projectId;
+  const remote = new Map(); snap.forEach(d => { remote.set(d.key, d.val()); });
+  const local = await store.list(); const lm = new Map(local.map(f => [f.id, f]));
+  let changed = false;
+  for (const [id, d] of remote) {
+    const l = lm.get(id), gh = { path: d.ghPath, sha: d.ghSha };
+    if (!l) { await store.put({ id, name: d.name, type: d.type, size: d.size, cat: d.cat, added: d.added, blob: null, gh, cloud: 'synced', cloudProject: pid }); changed = true; }
+    else if (l.name !== d.name || l.cat !== d.cat || l.cloud !== 'synced' || l.cloudProject !== pid) {
+      Object.assign(l, { name: d.name, cat: d.cat, gh, cloud: 'synced', cloudProject: pid }); delete l.err; await store.put(l); changed = true;
+    }
+  }
+  {
+    for (const l of local) { // removidos em outro dispositivo
+      if (remote.has(l.id) || l.cloud !== 'synced') continue;
+      if (l.cloudProject === pid || !l.blob) { await store.remove(l.id); changed = true; }
+      else { l.cloud = 'pending'; delete l.gh; await store.put(l); changed = true; } // veio de outro projeto → reenviar
+    }
+  }
+  if (changed) await reload(); else render();
+  pushPending(); prefetchThumbs();
+}
+
+/* ---- Conexão ---- */
+function disconnectCloud(signOut) {
+  if (cloud.unsub) { cloud.unsub(); cloud.unsub = null; }
+  cloud.on = false; cloud.db = null; cloud.user = null; offlineMode = false; askedUnlock = false;
+  if (signOut && fbReady) fbReady.then(({ auth }) => auth.signOut()).catch(() => {});
+}
+async function connectCloud() {
+  const c = getCloud();
+  if (!cloudCfgOk(c)) { cloud.on = false; updateCloudUI(); return; }
+  if (offlineMode) { cloud.on = false; updateCloudUI(); return; }
+  cloud.err = ''; updateCloudUI();
+  try {
+    const { auth, db } = await initFirebase();
+    let user = null;
+    if (c.fbEmail) { // modo com Firebase Auth; sem e-mail = regras abertas, sem login no Firebase
+      user = auth.currentUser || await new Promise(res => { const u = auth.onAuthStateChanged(x => { u(); res(x); }); });
+      if (!user) return lockApp('Sessão da nuvem expirada. Entre novamente.');
+    }
+    cloud.on = true; cloud.db = db; cloud.user = user; cloud.err = '';
+    if (cloud.unsub) cloud.unsub();
+    const dbRef = db.ref(COL);
+    const onVal = snap => { snapChain = snapChain.then(() => reconcile(snap)).catch(console.error); };
+    dbRef.on('value', onVal, err => {
+      cloud.on = false;
+      cloud.err = /permission/i.test(err.code || err.message) ? 'Sem permissão no Realtime Database — confira as regras' : 'Erro na nuvem: ' + (err.code || err.message);
+      updateCloudUI(); toast(cloud.err, true);
+    });
+    cloud.unsub = () => dbRef.off('value', onVal);
+    updateCloudUI();
+    if (!hasToken() && !askedUnlock) { askedUnlock = true; setTimeout(() => promptUnlock(false), 1500); }
+  } catch (e) {
+    cloud.on = false; cloud.err = 'Nuvem indisponível: ' + e.message; updateCloudUI(); toast(cloud.err, true);
+  }
+}
+
+/* ---- Tela de configuração ---- */
+function parseFbConfig(txt) {
+  const o = {};
+  for (const k of ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId', 'databaseURL']) {
+    const m = String(txt).match(new RegExp(`["']?${k}["']?\\s*:\\s*["']([^"']+)["']`));
+    if (m) o[k] = m[1];
+  }
+  return o;
+}
+const encCfg = o => 'COFRE1.' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+const decCfg = s => JSON.parse(decodeURIComponent(escape(atob(String(s).trim().replace(/^COFRE1\./, '')))));
+
+function openCloudModal() {
+  const c = getCloud(), g = c.gh || {};
+  $('dlg').className = 'dialog wide';
+  $('dlg').innerHTML = `<h3>☁ Nuvem (Firebase + GitHub)</h3>
+    <p>Os arquivos ficam num repositório do GitHub (de preferência <b>privado</b>; se for público, qualquer pessoa vê os arquivos) e a lista no Firebase, para você acessar de qualquer lugar.</p>
+    <details><summary>Passo a passo da configuração</summary><ol>
+      <li><b>Firebase:</b> em <code>console.firebase.google.com</code> crie um projeto e adicione um app Web <code>&lt;/&gt;</code>. Copie o bloco <code>firebaseConfig</code>.</li>
+      <li><b>Realtime Database</b> → Criar banco de dados → aba <b>Regras</b> → cole e publique:
+<pre>{
+  "rules": {
+    "cofre_files": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}</pre>
+        (Opcional, mais seguro: ative <b>Authentication → E-mail/senha</b>, crie um usuário e use no lugar de <code>true</code>: <code>"auth != null &amp;&amp; auth.token.email == 'SEU_EMAIL'"</code>. Aí informe o e-mail abaixo.)
+        Depois copie a <b>URL do banco</b> (aparece no topo da aba Dados, ex.: <code>https://projeto-default-rtdb.firebaseio.com</code>).</li>
+      <li><b>GitHub:</b> crie um repositório só para os dados (ex.: <code>integracao</code>).</li>
+      <li>GitHub → Settings → Developer settings → <b>Fine-grained tokens</b> → acesso apenas a esse repositório → permissão <b>Contents: Read and write</b>. Copie o token.</li>
+      <li><b>Link de qualquer lugar:</b> publique este arquivo como <code>index.html</code> em OUTRO repositório <b>público</b> com GitHub Pages ligado (nunca no repositório de dados). Se o login der <code>auth/unauthorized-domain</code>, adicione <code>seu-usuario.github.io</code> em Authentication → Configurações → Domínios autorizados.</li>
+      <li>Em cada novo dispositivo: abra o link, clique em “Configurar nuvem”, cole o <b>código de configuração</b> (gerado abaixo) e salve.</li>
+    </ol></details>
+    <h4>Firebase</h4>
+    <div class="fld"><label>firebaseConfig (cole o bloco do console)</label>
+      <textarea id="cfFb" rows="5" spellcheck="false" placeholder='{ apiKey: "...", authDomain: "...", projectId: "...", appId: "..." }'>${esc(c.fb ? JSON.stringify(c.fb, null, 2) : '')}</textarea></div>
+    <div class="fld"><label>URL do Realtime Database (topo da aba Dados)</label><input id="cfDb" value="${esc((c.fb && c.fb.databaseURL) || '')}" autocomplete="off" spellcheck="false" placeholder="https://seu-projeto-default-rtdb.firebaseio.com"></div>
+    <div class="fld"><label>E-mail do Firebase Auth (opcional — deixe em branco se as regras forem abertas)</label><input id="cfEmail" type="email" value="${esc(c.fbEmail || '')}" autocomplete="off"></div>
+    <h4>GitHub (repositório privado de dados)</h4>
+    <div class="fld"><label>Repositório (usuario/repositorio)</label><input id="cfRepo" value="${esc(g.repo || '')}" autocomplete="off" spellcheck="false"></div>
+    <div class="two">
+      <div class="fld"><label>Branch</label><input id="cfBranch" value="${esc(g.branch || 'main')}" autocomplete="off"></div>
+      <div class="fld"><label>Pasta dos arquivos</label><input id="cfFolder" value="${esc(g.folder || 'arquivos')}" autocomplete="off"></div>
+    </div>
+    <div class="fld"><label>Token do GitHub — necessário só para ENVIAR e EXCLUIR neste aparelho ${g.token ? '(já salvo — deixe em branco para manter)' : ''}</label><input id="cfToken" type="password" autocomplete="new-password" placeholder="github_pat_..."></div>
+    <h4>Código de acesso (para não colar o token em cada aparelho)</h4>
+    <div class="fld"><label>Escolha um código longo (frase com 4+ palavras). Ele protege o token na nuvem.</label><input id="cfPass" type="password" autocomplete="new-password" placeholder="seu código de acesso"></div>
+    <div class="fld"><label>Palavra de lembrança (aparece na tela de desbloqueio — não escreva o código aqui)</label><input id="cfHint" value="Minha vida" autocomplete="off" maxlength="80"></div>
+    <div class="row wrap" style="margin-bottom:10px"><button type="button" id="cfProt">Proteger token com este código</button></div>
+    <h4>Levar a configuração para outro dispositivo</h4>
+    <div class="fld"><textarea id="cfCode" rows="2" spellcheck="false" placeholder="Código de configuração (COFRE1.…)"></textarea></div>
+    <p style="font-size:12px;margin-bottom:10px">⚠ O código contém seu token do GitHub. Não compartilhe com ninguém.</p>
+    <div class="msg" id="cfMsg"></div>
+    <div class="row wrap">
+      <span style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" id="cfGen">Gerar código</button>
+        <button type="button" id="cfImp">Importar código</button>
+        <button type="button" id="cfOff" class="danger-o">Remover token</button>
+      </span>
+      <span style="display:flex;gap:8px"><button type="button" id="cfNo">Cancelar</button><button type="button" id="cfOk" class="ok">Testar e salvar</button></span>
+    </div>`;
+  $('dlgModal').classList.add('show');
+  const msg = t => { $('cfMsg').textContent = t; };
+  const close = () => { $('dlg').onkeydown = null; $('dlgModal').classList.remove('show'); };
+  $('dlg').onkeydown = e => { if (e.key === 'Escape') close(); };
+  $('cfNo').onclick = close;
+  $('cfGen').onclick = () => {
+    const cur = getCloud();
+    if (!cloudCfgOk(cur)) return msg('Salve a configuração primeiro para gerar o código.');
+    const code = encCfg(cur); $('cfCode').value = code;
+    navigator.clipboard?.writeText(code).then(() => msg('')).catch(() => {});
+    toast('Código gerado (copiado, se o navegador permitir)');
+  };
+  $('cfImp').onclick = () => {
+    try {
+      const o = decCfg($('cfCode').value);
+      if (!o.fb || !o.gh) throw new Error('x');
+      $('cfFb').value = JSON.stringify(o.fb, null, 2); $('cfDb').value = o.fb.databaseURL || ''; $('cfEmail').value = o.fbEmail || '';
+      $('cfRepo').value = o.gh.repo || ''; $('cfBranch').value = o.gh.branch || 'main';
+      $('cfFolder').value = o.gh.folder || 'arquivos'; $('cfToken').value = o.gh.token || '';
+      msg('Código importado — clique em “Testar e salvar”.');
+    } catch { msg('Código inválido.'); }
+  };
+  $('cfProt').onclick = async () => {
+    const pass = $('cfPass').value.trim(), token = $('cfToken').value.trim() || (getCloud().gh && getCloud().gh.token) || '';
+    if (!token) return msg('Cole o token do GitHub acima (uma única vez) e salve; depois proteja com o código.');
+    if (pass.length < 12) /* mínimo */ return msg('Use um código com pelo menos 12 caracteres (de preferência uma frase longa).');
+    msg('Protegendo… (alguns segundos)');
+    try { await protectToken(token, pass, $('cfHint').value.trim()); msg('Pronto! Nos outros aparelhos basta abrir o link e digitar este código.'); toast('Token protegido com o seu código'); }
+    catch (e) {
+      const perm = /permission|PERMISSION/.test(e.code || e.message || '');
+      msg(perm ? 'O Firebase negou a gravação. Nas Regras do Realtime Database, adicione também "cofre_config": {".read": true, ".write": true} e publique.' : (e.message || String(e)));
+    }
+  };
+  $('cfOff').onclick = () => {
+    saveCloud({}); try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+    toast('Token e configuração removidos deste aparelho (arquivos locais mantidos)'); setTimeout(() => location.reload(), 600);
+  };
+  $('cfOk').onclick = async () => {
+    const fb = parseFbConfig($('cfFb').value);
+    if (!fb.apiKey || !fb.projectId || !fb.appId) return msg('Cole o firebaseConfig completo (apiKey, projectId e appId).');
+    if (!fb.authDomain) fb.authDomain = fb.projectId + '.firebaseapp.com';
+    const dbUrl = $('cfDb').value.trim().replace(/\/+$/, '') || fb.databaseURL || '';
+    if (dbUrl && !/^https:\/\/[\w.-]+\.(firebaseio\.com|firebasedatabase\.app)$/.test(dbUrl)) return msg('URL do Realtime Database inválida (ex.: https://projeto-default-rtdb.firebaseio.com).');
+    fb.databaseURL = dbUrl || `https://${fb.projectId}-default-rtdb.firebaseio.com`;
+    const email = $('cfEmail').value.trim();
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) return msg('E-mail inválido (ou deixe em branco para usar regras abertas).');
+    const repo = $('cfRepo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '');
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return msg('Repositório inválido. Use o formato usuario/repositorio.');
+    const token = $('cfToken').value.trim() || (getCloud().gh && getCloud().gh.token) || ''; // opcional: sem ele o aparelho só lê/baixa
+    const branch = $('cfBranch').value.trim() || 'main';
+    const folder = $('cfFolder').value.trim().replace(/^\/+|\/+$/g, '') || 'arquivos';
+    msg('Testando o GitHub…');
+    let pubWarn = false;
+    try {
+      const r = await fetch(`${GH_API}/repos/${repo}`, { headers: { ...(token ? { Authorization: 'Bearer ' + token } : {}), Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' } });
+      if (r.status === 401) return msg('Token inválido ou expirado.');
+      if (r.status === 404) return msg(token ? 'Repositório não encontrado (ou o token não tem acesso a ele).' : 'Repositório não encontrado ou privado (sem token só funciona com repositório público).');
+      if (!r.ok) return msg('O GitHub respondeu com erro ' + r.status + '.');
+      const j = await r.json();
+      if (!j.private) pubWarn = true; // permitido, mas avisa
+      if (token && j.permissions && !j.permissions.push) return msg('O token precisa da permissão Contents: Read and write.');
+    } catch (e) { return msg('Sem conexão com o GitHub: ' + e.message); }
+    if (!saveCloud({ fb, fbEmail: email, gh: { repo, branch, folder, token } }))
+      return msg('O navegador bloqueou o armazenamento e a configuração não foi salva. Abra o arquivo direto no Chrome/Edge (duplo clique no index.html ou pelo link do GitHub Pages), não numa pré-visualização, e tente de novo.');
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+    msg(pubWarn ? 'Salvo. ATENÇÃO: o repositório é PÚBLICO — qualquer pessoa pode ver os arquivos enviados. Recarregando…' : 'Salvo! Recarregando… depois entre com seu login e senha.');
+    setTimeout(() => location.reload(), pubWarn ? 3500 : 900);
+  };
+};
+$('btnCloud').onclick = openCloudModal;
+$('lgCloud').onclick = openCloudModal;
+$('btnSync').onclick = async () => {
+  if (!cloudCfgOk(getCloud())) return toast('Configure a nuvem primeiro (⚙ Nuvem)', true);
+  if (!cloud.on) return toast('Nuvem não conectada: ' + (cloud.err || 'aguarde a conexão'), true);
+  if (!hasToken()) return promptUnlock(true);
+  toast('Sincronizando…'); await pushPending(true); prefetchThumbs(); toast('Sincronização concluída');
+};
+
+/* =====================================================================
+   LOGIN / SENHA
+   A senha nunca fica em texto puro: guarda-se só o hash SHA-256.
+   Observação: é uma trava de acesso no navegador (não criptografa os
+   arquivos). Quando integrar Firebase, o ideal é migrar para Firebase Auth.
+   ===================================================================== */
+function sha256js(str){
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const rr=(x,n)=>(x>>>n)|(x<<(32-n));
+  const m=new TextEncoder().encode(str), l=m.length, n=((l+9+63)>>6)<<6, b=new Uint8Array(n);
+  b.set(m); b[l]=0x80;
+  const dv=new DataView(b.buffer); dv.setUint32(n-8,Math.floor(l*8/4294967296)); dv.setUint32(n-4,(l*8)>>>0);
+  const H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19], w=new Uint32Array(64);
+  for(let o=0;o<n;o+=64){
+    for(let i=0;i<16;i++) w[i]=dv.getUint32(o+i*4);
+    for(let i=16;i<64;i++){
+      const s0=rr(w[i-15],7)^rr(w[i-15],18)^(w[i-15]>>>3), s1=rr(w[i-2],17)^rr(w[i-2],19)^(w[i-2]>>>10);
+      w[i]=(w[i-16]+s0+w[i-7]+s1)|0;
+    }
+    let [a,bb,c,d,e,f,g,h]=H;
+    for(let i=0;i<64;i++){
+      const S1=rr(e,6)^rr(e,11)^rr(e,25), ch=(e&f)^(~e&g), t1=(h+S1+ch+K[i]+w[i])|0;
+      const S0=rr(a,2)^rr(a,13)^rr(a,22), mj=(a&bb)^(a&c)^(bb&c), t2=(S0+mj)|0;
+      h=g; g=f; f=e; e=(d+t1)|0; d=c; c=bb; bb=a; a=(t1+t2)|0;
+    }
+    H[0]=(H[0]+a)|0; H[1]=(H[1]+bb)|0; H[2]=(H[2]+c)|0; H[3]=(H[3]+d)|0; H[4]=(H[4]+e)|0; H[5]=(H[5]+f)|0; H[6]=(H[6]+g)|0; H[7]=(H[7]+h)|0;
+  }
+  return H.map(x=>(x>>>0).toString(16).padStart(8,'0')).join('');
+}
+async function sha256(str){
+  try {
+    if (window.crypto?.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+    }
+  } catch {}
+  return sha256js(str);
+}
+
+const AUTH_KEY = 'cofre-auth', SESSION_KEY = 'cofre-session', SALT = 'cofre-v1:';
+const DEFAULT_AUTH = { user: 'levy', hash: '27bacac2c2b54f91a77d1dd1ddf18ec7b83204995d84664f055e22c669897d6f' };
+const hashPass = p => sha256(SALT + p);
+
+function getAuth() {
+  try {
+    const a = JSON.parse(localStorage.getItem(AUTH_KEY));
+    if (a && a.user && a.hash) return a;
+  } catch {}
+  return { ...DEFAULT_AUTH };
+}
+function setAuth(a) { try { localStorage.setItem(AUTH_KEY, JSON.stringify(a)); } catch { toast('Não foi possível salvar a senha neste navegador', true); } }
+function isLogged() { try { return sessionStorage.getItem(SESSION_KEY) === '1'; } catch { return false; } }
+
+let appStarted = false;
+async function startApp() {
+  document.body.classList.remove('locked');
+  if (!appStarted) { appStarted = true; navigator.storage?.persist?.().catch(() => {}); }
+  try { await reload(); } catch (e) { console.error(e); toast('Erro ao abrir o armazenamento local', true); }
+  connectCloud();
+}
+function lockApp(msg) {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+  disconnectCloud(true);
+  closeViewer();
+  files = []; selected.clear(); selMode = false;
+  thumbs.forEach(u => URL.revokeObjectURL(u)); thumbs.clear();
+  $('files').innerHTML = '';
+  $('lgPass').value = ''; $('lgErr').textContent = typeof msg === 'string' ? msg : '';
+  document.body.classList.add('locked');
+  setTimeout(() => $('lgUser').focus(), 50);
+}
+
+$('lgEye').onclick = () => { const p = $('lgPass'); p.type = p.type === 'password' ? 'text' : 'password'; };
+$('loginBox').addEventListener('submit', async e => {
+  e.preventDefault();
+  const auth = getAuth(), c = getCloud();
+  const u = $('lgUser').value.trim().toLowerCase(), pass = $('lgPass').value;
+  const sb = $('loginBox').querySelector('button[type=submit]');
+  const bad = m => {
+    sb.disabled = false; $('lgErr').textContent = m;
+    const box = $('loginBox'); box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+    $('lgPass').select();
+  };
+  const ok = () => {
+    sb.disabled = false;
+    try { sessionStorage.setItem(SESSION_KEY, '1'); } catch {}
+    $('lgErr').textContent = ''; $('lgPass').value = '';
+    startApp();
+  };
+  if (u !== auth.user.toLowerCase()) return bad('Login ou senha incorretos.');
+  sb.disabled = true; $('lgErr').textContent = '';
+
+  if (cloudCfgOk(c) && c.fbEmail) {
+    // Com e-mail do Firebase informado, quem confere a senha é o Firebase (vale em qualquer dispositivo)
+    try {
+      const { auth: fa } = await initFirebase();
+      await fa.signInWithEmailAndPassword(c.fbEmail, pass);
+      offlineMode = false;
+      setAuth({ user: auth.user, hash: await hashPass(pass) }); // mantém o acesso offline em dia
+      return ok();
+    } catch (err) {
+      const code = err.code || '';
+      if (!code || code === 'auth/network-request-failed') { // sem internet / Firebase não carregou
+        if (await hashPass(pass) === auth.hash) { offlineMode = true; toast('Sem conexão com a nuvem — modo local'); return ok(); }
+        return bad('Sem conexão com a nuvem e a senha não confere com a salva neste dispositivo.');
+      }
+      if (['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found', 'auth/invalid-email'].includes(code)) return bad('Login ou senha incorretos.');
+      if (code === 'auth/too-many-requests') return bad('Muitas tentativas. Aguarde um pouco e tente de novo.');
+      if (code === 'auth/operation-not-allowed') return bad('Ative o login por E-mail/Senha no Firebase (Authentication).');
+      return bad('Erro do Firebase: ' + code);
+    }
+  }
+  if (await hashPass(pass) === auth.hash) return ok();
+  return bad('Login ou senha incorretos.');
+});
+
+$('btnLogout').onclick = () => lockApp();
+
+/* Trocar senha */
+$('btnPass').onclick = () => {
+  $('dlg').className = 'dialog';
+  $('dlg').innerHTML = `<h3>Trocar senha</h3>
+    <p>Informe a senha atual e escolha a nova senha.</p>
+    <div class="fld"><label>Senha atual</label><input id="pwOld" type="password" autocomplete="current-password"></div>
+    <div class="fld"><label>Nova senha (mín. 6 caracteres)</label><input id="pwNew" type="password" autocomplete="new-password"></div>
+    <div class="fld"><label>Confirmar nova senha</label><input id="pwNew2" type="password" autocomplete="new-password"></div>
+    <div class="msg" id="pwMsg"></div>
+    <div class="row"><button id="pwNo" type="button">Cancelar</button><button id="pwOk" type="button" class="ok">Salvar senha</button></div>`;
+  $('dlgModal').classList.add('show');
+  $('pwOld').focus();
+  const close = () => { $('dlg').onkeydown = null; $('dlgModal').classList.remove('show'); };
+  const fail = m => { $('pwMsg').textContent = m; };
+  const save = async () => {
+    const old = $('pwOld').value, n1 = $('pwNew').value, n2 = $('pwNew2').value;
+    const auth = getAuth(), c = getCloud();
+    const useFb = cloud.on && cloud.user;
+    if (useFb) { // com a nuvem conectada, a senha é a do usuário do Firebase
+      try { await cloud.user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(c.fbEmail, old)); }
+      catch (e) { return fail(e.code === 'auth/network-request-failed' ? 'Sem conexão com a nuvem.' : 'A senha atual está incorreta.'); }
+    } else if (await hashPass(old) !== auth.hash) return fail('A senha atual está incorreta.');
+    if (n1.length < 6) return fail('A nova senha precisa ter pelo menos 6 caracteres.');
+    if (n1 !== n2) return fail('A confirmação não confere com a nova senha.');
+    if (n1 === old) return fail('A nova senha deve ser diferente da atual.');
+    if (useFb) {
+      try { await cloud.user.updatePassword(n1); }
+      catch (e) { return fail('Não foi possível alterar na nuvem: ' + (e.code || e.message)); }
+    }
+    setAuth({ user: auth.user, hash: await hashPass(n1) });
+    close();
+    toast(useFb ? 'Senha alterada (nuvem e este dispositivo)' : cloudCfgOk(c) && c.fbEmail ? 'Senha alterada só neste dispositivo (sem conexão com a nuvem)' : 'Senha alterada com sucesso');
+  };
+  $('pwNo').onclick = close;
+  $('pwOk').onclick = save;
+  $('dlg').onkeydown = e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') close(); };
+};
+
+/* Início: só carrega os arquivos depois do login */
+if (isLogged()) startApp(); else setTimeout(() => $('lgUser').focus(), 50);
+</script>
+</body>
+</html>
